@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Background Remover</title>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; text-align: center; background: #f4f4f9; padding: 40px; color: #1f2933; }
+        .container { background: white; max-width: 960px; margin: auto; padding: 30px; border-radius: 12px; box-shadow: 0 16px 60px rgba(15,23,42,0.12); }
+        h1 { color: #333; }
+        
+        /* Form Styling */
+        .upload-row { display: flex; gap: 16px; align-items: center; justify-content: center; flex-wrap: wrap; }
+        input[type="file"] { margin: 12px 0; padding: 12px; border: 2px dashed #cbd5e1; width: 60%; max-width: 400px; border-radius: 10px; background: #f8fafc; }
+        
+        button { 
+            background: linear-gradient(120deg, #2563eb, #1d4ed8); color: white; border: none; padding: 14px 28px; 
+            font-size: 16px; cursor: pointer; border-radius: 999px; transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 10px 30px rgba(37,99,235,0.24);
+        }
+        button:hover { transform: translateY(-1px); box-shadow: 0 12px 36px rgba(37,99,235,0.32); }
+        button:disabled { background: #cbd5e1; box-shadow: none; cursor: not-allowed; }
+
+        /* --- PROGRESS --- */
+        .loader-container { display: none; margin-top: 18px; text-align: center; }
+        .progress-track { width: 100%; max-width: 480px; margin: 0 auto 10px; height: 12px; background: #e2e8f0; border-radius: 999px; overflow: hidden; }
+        .progress-bar { height: 100%; width: 0; background: linear-gradient(120deg, #16a34a, #22c55e); transition: width 0.1s linear; }
+        .progress-text { font-weight: 600; color: #0f172a; }
+
+        /* Preview / Result */
+        .preview-panel { margin-top: 24px; text-align: left; }
+        .preview-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+        .preview-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.6); }
+        .checkerboard { background-image: linear-gradient(45deg, #dfe7ef 25%, transparent 25%), linear-gradient(-45deg, #dfe7ef 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #dfe7ef 75%), linear-gradient(-45deg, transparent 75%, #dfe7ef 75%); background-size: 18px 18px; background-position: 0 0, 0 9px, 9px -9px, -9px 0px; border-radius: 10px; padding: 8px; }
+        .result-section { margin-top: 16px; }
+        .image-box img, .preview-card img { max-width: 100%; border-radius: 8px; border: 1px solid #e5e7eb; }
+        .download-btn { display: inline-block; margin-top: 12px; padding: 10px 18px; background: #16a34a; color: white; text-decoration: none; border-radius: 8px; box-shadow: 0 8px 24px rgba(22,163,74,0.28); }
+        .status-msg { margin-top: 10px; color: #dc2626; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>AI Background Remover</h1>
+        <p>Upload an image to remove the background automatically.</p>
+
+        <form id="uploadForm" method="post" enctype="multipart/form-data">
+            <div class="upload-row">
+                <input id="fileInput" type="file" name="file" accept="image/*" required>
+                <button type="submit" id="submitBtn">Remove Background</button>
+            </div>
+        </form>
+
+        <div class="loader-container" id="loader" aria-live="polite">
+            <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="progress-text"><span id="progressText">0%</span> Processing...</div>
+        </div>
+
+        <div class="preview-panel" id="previewPanel">
+            <h3>Preview</h3>
+            <div class="preview-grid">
+                <div class="preview-card">
+                    <p><strong>Selected Image</strong></p>
+                    <img id="selectedPreview" src="" alt="Selected preview" aria-label="Selected preview">
+                </div>
+                <div class="preview-card">
+                    <p><strong>Processed Result</strong></p>
+                    <div class="checkerboard">
+                        <img id="resultPreview" src="" alt="Result preview" aria-label="Result preview">
+                    </div>
+                    <a id="downloadLink" href="#" download class="download-btn" style="display:none;">Download Image</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-msg" id="statusMsg" role="status"></div>
+
+        {% if result_image %}
+        <div class="result-section" id="serverResult">
+            <div class="image-box">
+                <h3>Original</h3>
+                <img src="{{ original_image }}" alt="Original">
+            </div>
+            <div class="image-box">
+                <h3>Result</h3>
+                <div class="checkerboard">
+                    <img src="{{ result_image }}" alt="Result">
+                </div>
+                <br>
+                <a href="{{ result_image }}" download class="download-btn">Download Image</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        const form = document.getElementById('uploadForm');
+        const loader = document.getElementById('loader');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const submitBtn = document.getElementById('submitBtn');
+        const fileInput = document.getElementById('fileInput');
+        const selectedPreview = document.getElementById('selectedPreview');
+        const resultPreview = document.getElementById('resultPreview');
+        const downloadLink = document.getElementById('downloadLink');
+        const statusMsg = document.getElementById('statusMsg');
+        const previewPanel = document.getElementById('previewPanel');
+        const serverResult = document.getElementById('serverResult');
+
+        let progressInterval;
+        let startTime;
+
+        const setProgress = (value) => {
+            const clamped = Math.max(0, Math.min(100, value));
+            progressBar.style.width = `${clamped}%`;
+            progressText.textContent = `${Math.round(clamped)}%`;
+            loader.querySelector('.progress-track').setAttribute('aria-valuenow', Math.round(clamped));
+        };
+
+        const startProgress = () => {
+            loader.style.display = 'block';
+            startTime = performance.now();
+            setProgress(0);
+            progressInterval = setInterval(() => {
+                const elapsed = (performance.now() - startTime) / 1000; // seconds
+                // Walk toward 95% based on elapsed time; will snap to 100 when done.
+                const target = Math.min(95, 5 + elapsed * 25);
+                setProgress(target);
+            }, 150);
+        };
+
+        const finishProgress = () => {
+            if (progressInterval) clearInterval(progressInterval);
+            setProgress(100);
+            setTimeout(() => { loader.style.display = 'none'; }, 400);
+        };
+
+        const resetButton = () => {
+            submitBtn.disabled = false;
+            submitBtn.innerText = 'Remove Background';
+        };
+
+        const updateSelectedPreview = (file) => {
+            if (!file) { return; }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                selectedPreview.src = e.target.result;
+                selectedPreview.alt = file.name;
+                previewPanel.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        };
+
+        fileInput.addEventListener('change', (e) => {
+            statusMsg.textContent = '';
+            if (e.target.files && e.target.files[0]) {
+                updateSelectedPreview(e.target.files[0]);
+            }
+        });
+
+        form.addEventListener('submit', async function(evt) {
+            evt.preventDefault();
+            statusMsg.textContent = '';
+            const file = fileInput.files[0];
+            if (!file) {
+                statusMsg.textContent = 'Please choose an image first.';
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'Processing...';
+            startProgress();
+
+            const formData = new FormData(form);
+
+            try {
+                const response = await fetch('/', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Processing failed');
+                }
+
+                const data = await response.json();
+                finishProgress();
+                resetButton();
+
+                if (serverResult) { serverResult.style.display = 'none'; }
+                resultPreview.src = data.result_image;
+                resultPreview.alt = 'Background removed result';
+                selectedPreview.alt = 'Uploaded image';
+                downloadLink.href = data.result_image;
+                downloadLink.style.display = 'inline-block';
+                previewPanel.style.display = 'block';
+            } catch (err) {
+                finishProgress();
+                resetButton();
+                statusMsg.textContent = 'Something went wrong. Please try again.';
+            }
+        });
+    </script>
+
+</body>
+</html>
