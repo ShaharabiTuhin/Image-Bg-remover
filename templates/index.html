@@ -68,14 +68,14 @@
             <div class="preview-grid">
                 <div class="preview-card">
                     <p><strong>Selected Image</strong></p>
-                    <img id="selectedPreview" src="" alt="Selected preview" aria-label="Selected preview">
+                    <img id="selectedPreview" src="/static/uploads/sample-original.png" alt="Selected preview" aria-label="Selected preview">
                 </div>
                 <div class="preview-card">
                     <p><strong>Processed Result</strong></p>
                     <div class="checkerboard">
-                        <img id="resultPreview" src="" alt="Result preview" aria-label="Result preview">
+                        <img id="resultPreview" src="/static/uploads/sample-result.png" alt="Result preview" aria-label="Result preview">
                     </div>
-                    <a id="downloadLink" href="#" download class="download-btn" style="display:none;">Download Image</a>
+                    <a id="downloadLink" href="/static/uploads/sample-result.png" download class="download-btn">Download Sample</a>
                 </div>
             </div>
         </div>
@@ -86,12 +86,12 @@
         <div class="result-section" id="serverResult">
             <div class="image-box">
                 <h3>Original</h3>
-                <img src="{{ original_image }}" alt="Original">
+                <img src="/src/Tuhin.png" alt="Original">
             </div>
             <div class="image-box">
                 <h3>Result</h3>
                 <div class="checkerboard">
-                    <img src="{{ result_image }}" alt="Result">
+                    <img src="/src/TuhinBG.png" alt="Result">
                 </div>
                 <br>
                 <a href="{{ result_image }}" download class="download-btn">Download Image</a>
